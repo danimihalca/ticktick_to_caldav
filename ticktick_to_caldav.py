@@ -20,7 +20,6 @@ def parse_iso_datetime(dt_str):
 def parse_reminders(reminder_str):
     """
     Parses multi-line reminder fields into a list of valid RFC 5545 TRIGGER values.
-    TickTick can output multiple triggers separated by newlines.
     """
     if not reminder_str:
         return []
@@ -66,8 +65,8 @@ def sanitize_filename(name):
     clean = re.sub(r'[\\/*?:"<>|]', "_", name).strip()
     return clean if clean else "Default"
 
-def convert_csv_to_ics_by_folder(csv_file_path, output_dir):
-    folder_entries = defaultdict(list)
+def convert_csv_to_ics(csv_file_path, output_dir):
+    calendar_entries = defaultdict(list)
 
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -111,10 +110,18 @@ def convert_csv_to_ics_by_folder(csv_file_path, output_dir):
             task_id = row.get("taskid", "")
             parent_id = row.get("parentid", "")
             
-            folder_name = row.get("folder name", "") or "Default"
-            list_name = row.get("list name", "")
+            folder_name = row.get("folder name", "")
+            list_name = row.get("list name", "") or "Default"
             tags = [t.strip() for t in row.get("tags", "").split(",") if t.strip()]
             
+            # File grouping logic
+            if folder_name:
+                calendar_key = f"{folder_name} - {list_name}"
+            elif list_name.lower() in ["inbox", "default"]:
+                calendar_key = list_name
+            else:
+                calendar_key = f"Archived - {list_name}"
+
             created_time = parse_iso_datetime(row.get("created time", ""))
             start_date = parse_iso_datetime(row.get("start date", ""))
             due_date = parse_iso_datetime(row.get("due date", ""))
@@ -125,10 +132,8 @@ def convert_csv_to_ics_by_folder(csv_file_path, output_dir):
             reminders = parse_reminders(raw_row.get("Reminder", ""))
             rrule = parse_repeat(row.get("repeat", ""))
 
-            categories = []
-            if list_name:
-                categories.append(list_name)
-            categories.extend(tags)
+            # CATEGORIES strictly contains Tags only
+            categories = tags
 
             comp_type = "VJOURNAL" if kind == "NOTE" else "VTODO"
             
@@ -187,13 +192,13 @@ def convert_csv_to_ics_by_folder(csv_file_path, output_dir):
                     block.append("END:VALARM")
 
             block.append(f"END:{comp_type}")
-            folder_entries[folder_name].append("\n".join(block))
+            calendar_entries[calendar_key].append("\n".join(block))
             processed_rows += 1
 
     print(f"Processed {processed_rows} tasks from {csv_file_path}.")
 
-    for folder, entries in folder_entries.items():
-        file_name = f"{sanitize_filename(folder)}.ics"
+    for cal_key, entries in calendar_entries.items():
+        file_name = f"{sanitize_filename(cal_key)}.ics"
         file_path = os.path.join(output_dir, file_name)
         
         ics_body = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//TickTick to CalDAV Converter//EN\n"
@@ -207,4 +212,4 @@ def convert_csv_to_ics_by_folder(csv_file_path, output_dir):
 
 if __name__ == "__main__":
     csv_input = sys.argv[1] if len(sys.argv) > 1 else "ticktick_backup.csv"
-    convert_csv_to_ics_by_folder(csv_input, OUTPUT_DIR)
+    convert_csv_to_ics(csv_input, OUTPUT_DIR)

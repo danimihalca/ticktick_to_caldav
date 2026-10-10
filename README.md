@@ -10,7 +10,9 @@ python(3) ticktick_to_caldav.py <TickTick-backup-DATE.csv PATH>
 Output:
 ```
 ics_output/
-- TICKTICK_FOLDER_NAME#.ics (list names are being treated as CATEGORIES)
+- Inbox.ics
+- <FOLDER_NAME#> - <LIST_NAME#>.ics
+- Archived - <LIST_NAME#>.ics
 - ...
 ```
 
