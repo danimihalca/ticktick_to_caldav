@@ -165,11 +165,14 @@ def convert_csv_to_ics_by_folder(csv_file_path, output_dir):
                 if priority > 0:
                     block.append(f"PRIORITY:{priority}")
                 
-                if status in ["2", "-1"] or completed_time:
+                # Status handling: 2 = COMPLETED, -1 = CANCELLED (abandoned), 0 = NEEDS-ACTION
+                if status == "2":
                     block.append("STATUS:COMPLETED")
                     block.append("PERCENT-COMPLETE:100")
                     if completed_time:
                         block.append(f"COMPLETED:{completed_time}")
+                elif status == "-1":
+                    block.append("STATUS:CANCELLED")
                 else:
                     block.append("STATUS:NEEDS-ACTION")
 
